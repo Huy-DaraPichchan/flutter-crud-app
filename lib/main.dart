@@ -212,17 +212,71 @@ class _MyHomePageState extends State<MyHomePage> {
 
 // Create
   Future createTodo({required String description, isCompleted}) async {
-    final docTodo = FirebaseFirestore.instance.collection('todos').doc();
+    final isDuplicated = await isDuplicatedTodo(description);
 
-    final todo = Todo(
-      id: docTodo.id,
-      description: description,
-      isCompleted: isCompleted,
-    );
+    if (description.trim().isEmpty) {
+      _alertEmpty();
+      return;
+    }
 
-    final json = todo.toJson();
+    if (isDuplicated) {
+      _alertDuplicate();
+    } else {
+      final docTodo = FirebaseFirestore.instance.collection('todos').doc();
+      final todo = Todo(
+        id: docTodo.id,
+        description: description,
+        isCompleted: isCompleted,
+      );
 
-    await docTodo.set(json);
+      final json = todo.toJson();
+
+      await docTodo.set(json);
+    }
+  }
+
+  Future<bool> isDuplicatedTodo(String description) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('todos')
+        .where('description', isEqualTo: description)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return true;
+    }
+    return false;
+  }
+
+  void _alertDuplicate() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Warning!!!'),
+            content: const Text('Duplicate todo is not allowed'),
+            actions: [
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'))
+            ],
+          );
+        });
+  }
+
+   void _alertEmpty() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Warning!!!'),
+            content: const Text('Empty todo is not allowed'),
+            actions: [
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'))
+            ],
+          );
+        });
   }
 
 // Read
