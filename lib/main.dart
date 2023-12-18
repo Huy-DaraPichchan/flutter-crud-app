@@ -91,95 +91,101 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget buildTodo(Todo todo) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 20),
-        child: Container(
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xff1D1617).withOpacity(0.07),
-                    offset: const Offset(0, 10),
-                    blurRadius: 20,
-                    spreadRadius: 0)
-              ]),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: 100,
-            ),
+        child: ClipRect(
+          child: Banner(
+            message: todo.isEdited ? "Edited" : "",
+            location: BannerLocation.topEnd,
+            color: Colors.green,
             child: Container(
-              margin: const EdgeInsets.only(top: 5),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          child: Row(
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xff1D1617).withOpacity(0.07),
+                        offset: const Offset(0, 10),
+                        blurRadius: 20,
+                        spreadRadius: 0)
+                  ]),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: 100,
+                ),
+                child: Container(
+                  margin: const EdgeInsets.only(top: 5),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Checkbox(
+                                      key: UniqueKey(),
+                                      value: todo.isCompleted,
+                                      activeColor: Colors.green,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          todo.isCompleted = val!;
+                                          markAsDone(todo.id, todo.isCompleted);
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(
+                                      width: 30,
+                                    ),
+                                    Text(
+                                      todo.description,
+                                      textAlign: TextAlign.start,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        decoration: todo.isCompleted
+                                            ? TextDecoration.lineThrough
+                                            : TextDecoration.none,
+                                      ),
+                                    ),
+                                  ]),
+                            ),
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Checkbox(
-                                  key: UniqueKey(),
-                                  value: todo.isCompleted,
-                                  activeColor: Colors.green,
-                                  onChanged: (val) {
-                                    setState(() {
-                                      todo.isCompleted = val!;
-                                      markAsDone(todo.id, todo.isCompleted);
-                                    });
+                                GestureDetector(
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onTap: () {
+                                    _editTodoDialog(todo);
                                   },
                                 ),
-                                SizedBox(
+                                const SizedBox(
                                   width: 30,
                                 ),
-                                Text(
-                                  todo.description,
-                                  textAlign: TextAlign.start,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    decoration: todo.isCompleted
-                                        ? TextDecoration.lineThrough
-                                        : TextDecoration.none,
+                                GestureDetector(
+                                  child: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
                                   ),
+                                  onTap: () {
+                                    _deleteTodoDialog(todo);
+                                  },
                                 ),
-                              ]),
+                              ],
+                            )
+                          ],
                         ),
-                        Container(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                child: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                ),
-                                onTap: () {
-                                  _editTodoDialog(todo);
-                                },
-                              ),
-                              SizedBox(
-                                width: 30,
-                              ),
-                              GestureDetector(
-                                child: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onTap: () {
-                                  _deleteTodoDialog(todo);
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  )
-                ],
+                      )
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -191,6 +197,7 @@ class _MyHomePageState extends State<MyHomePage> {
         stream: readTodos(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
+            print(snapshot.error);
             return const Text('Something went wrong!!');
           } else if (snapshot.hasData) {
             final todos = snapshot.data!;
@@ -211,7 +218,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 // Create
-  Future createTodo({required String description, isCompleted}) async {
+  Future createTodo(
+      {required String description, isCompleted, isEdited = false}) async {
     final isDuplicated = await isDuplicatedTodo(description);
 
     if (description.trim().isEmpty) {
@@ -224,10 +232,10 @@ class _MyHomePageState extends State<MyHomePage> {
     } else {
       final docTodo = FirebaseFirestore.instance.collection('todos').doc();
       final todo = Todo(
-        id: docTodo.id,
-        description: description,
-        isCompleted: isCompleted,
-      );
+          id: docTodo.id,
+          description: description,
+          isCompleted: isCompleted,
+          isEdited: isEdited);
 
       final json = todo.toJson();
 
@@ -263,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
   }
 
-   void _alertEmpty() {
+  void _alertEmpty() {
     showDialog(
         context: context,
         builder: (context) {
@@ -291,7 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
     FirebaseFirestore.instance
         .collection('todos')
         .doc(todoId)
-        .update({'description': newDescription});
+        .update({'description': newDescription, 'isEdited': true});
   }
 
   void markAsDone(String todoId, bool isCompleted) {
@@ -329,9 +337,22 @@ class _MyHomePageState extends State<MyHomePage> {
                   foregroundColor: Colors.white,
                   backgroundColor: Colors.green,
                 ),
-                onPressed: () {
-                  updateTodo(todo.id, controller.text);
-                  Navigator.pop(context);
+                onPressed: () async {
+                  final newDescription = controller.text.trim();
+
+                  if (newDescription.isEmpty) {
+                    _alertEmpty();
+                    return;
+                  }
+
+                  final isDuplicated = await isDuplicatedTodo(newDescription);
+
+                  if (isDuplicated) {
+                    _alertDuplicate();
+                  } else {
+                    updateTodo(todo.id, newDescription);
+                    Navigator.pop(context);
+                  }
                 },
                 child: const Text('Update')),
           ],
